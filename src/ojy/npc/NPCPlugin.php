@@ -62,6 +62,8 @@ class NPCPlugin extends PluginBase implements Listener
         $npc = $event->getEntity();
         if (!$npc instanceof NPC && !$npc instanceof EntityNPC) return;
         $player = $event->getPlayer();
+        if ($npc instanceof EntityNPC)
+            $npc->lookAt($player);
         if (isset(self::$queue[$player->getName()])) {
             $data = self::$queue[$player->getName()];
             $type = $data['type'];
@@ -120,15 +122,15 @@ class NPCPlugin extends PluginBase implements Listener
     public function onDamage(EntityDamageEvent $event)
     {
         $entity = $event->getEntity();
-        if ($entity instanceof NPC || $entity instanceof EntityNPC){
+        if ($entity instanceof NPC || $entity instanceof EntityNPC) {
             $event->setCancelled();
         }
     }
 
     public static function createNPC(Player $player, string $name, string $type = null)
     {
-        if($type === null) {
-            $nbt = Entity::createBaseNBT($player->getPosition(), new Vector3(), $player->yaw, $player->pitch);
+        $nbt = Entity::createBaseNBT($player->getPosition(), new Vector3(), $player->yaw, $player->pitch);
+        if ($type === null) {
             $skin = $player->getSkin();
             $nbt->setTag(new CompoundTag("Skin", [
                 new StringTag("Name", $skin->getSkinId()),
@@ -166,15 +168,16 @@ class NPCPlugin extends PluginBase implements Listener
             $npc->spawnToAll();
             self::message($player, 'NPC created successfully: ' . $npc->getId());
         } else {
-            $nbt = Entity::createBaseNBT($player->getPosition(), new Vector3(), $player->yaw, $player->pitch);
             $nbt->setByte('Invulnerable', 1);
             $nbt->setString('NPCData', (new NPCData($name))->serialize());
             $nbt->setString('npcEntityType', $type);
 
-            $npc = new EntityNPC($player->level,$nbt);
+            $npc = new EntityNPC($player->level, $nbt);
             $npc->setNameTag(str_replace("(줄바꿈)", "\n", $name));
             $npc->setNameTagAlwaysVisible();
             $npc->setImmobile();
+            $npc->yaw = $player->yaw;
+            $npc->pitch = $player->pitch;
             $npc->spawnToAll();
             self::message($player, 'NPC created successfully: ' . $npc->getId());
         }
