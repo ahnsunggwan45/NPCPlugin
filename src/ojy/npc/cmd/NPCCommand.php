@@ -16,7 +16,7 @@ class NPCCommand extends Command
 
     public function __construct()
     {
-        parent::__construct('npc', 'npc 명령어입니다.', '/npc [ id|command|message|name|spawn|remove|scale ]', []);
+        parent::__construct('npc', 'npc command.', '/npc [ id|command|message|name|spawn|remove|scale ]', []);
         $this->setPermission(Permission::DEFAULT_OP);
     }
 
@@ -111,7 +111,7 @@ class NPCCommand extends Command
                                 self::message($sender, "NPC with ID {$id} not found.");
                             }
                         } else {
-                            self::message($sender, '/npc command <id> <명령어>');
+                            self::message($sender, '/npc command <id> <command>');
                         }
                         break;
                     case 'message':
@@ -130,7 +130,7 @@ class NPCCommand extends Command
                                 self::message($sender, "NPC with ID {$id} not found.");
                             }
                         } else {
-                            self::message($sender, '/npc message <id> <명령어>');
+                            self::message($sender, '/npc message <id> <message>');
                         }
                         break;
                     default:
