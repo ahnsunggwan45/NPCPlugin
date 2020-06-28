@@ -11,6 +11,8 @@ use ojy\npc\cmd\NPCCommand;
 use ojy\npc\event\PlayerUseItemOnEntityEvent;
 use pocketmine\command\CommandSender;
 use pocketmine\entity\Entity;
+use pocketmine\event\entity\EntityDamageByEntityEvent;
+use pocketmine\event\entity\EntityDamageEvent;
 use pocketmine\event\Listener;
 use pocketmine\event\server\DataPacketReceiveEvent;
 use pocketmine\math\Vector3;
@@ -35,6 +37,7 @@ class NPCPlugin extends PluginBase implements Listener
     {
         self::$instance = $this;
         Entity::registerEntity(NPC::class, true, ['NPC']);
+        Entity::registerEntity(EntityNPC::class, true, ['EntityNPC']);
     }
 
     public function onEnable()
@@ -57,7 +60,7 @@ class NPCPlugin extends PluginBase implements Listener
     public function onUseItemOnEntity(PlayerUseItemOnEntityEvent $event)
     {
         $npc = $event->getEntity();
-        if (!$npc instanceof NPC) return;
+        if (!$npc instanceof NPC && !$npc instanceof EntityNPC) return;
         $player = $event->getPlayer();
         if (isset(self::$queue[$player->getName()])) {
             $data = self::$queue[$player->getName()];
@@ -114,70 +117,66 @@ class NPCPlugin extends PluginBase implements Listener
     }
 
 
-    /*public function onDamage(EntityDamageEvent $event)
+    public function onDamage(EntityDamageEvent $event)
     {
-        if (!$event instanceof EntityDamageByEntityEvent) return;
         $entity = $event->getEntity();
-        if (!$entity instanceof NPC) return;
-        $damager = $event->getDamager();
-        if (!$damager instanceof Player) return;
-        $entity->lookAt($damager);
-        $event->setCancelled();
-        if (isset(self::$queue[$damager->getName()])) {
-            $data = self::$queue[$damager->getName()];
-            $type = $data['type'];
-            if ($type === 'id') {
-                self::message($damager, '엔티티 ID: ' . $entity->getId());
-                unset(self::$queue[$damager->getName()]);
-            }
-            return;
+        if ($entity instanceof NPC || $entity instanceof EntityNPC){
+            $event->setCancelled();
         }
-        $data = $entity->getData();
-        $cmd = $data->getCommand();
-        if ($cmd !== "" && $cmd !== 'x')
-            Server::getInstance()->dispatchCommand($damager, $cmd);
-        $message = $data->getMessage();
-        if ($message !== "" && $message !== 'x')
-            $damager->sendMessage($message);
-    }*/
+    }
 
-    public static function createNPC(Player $player, string $name)
+    public static function createNPC(Player $player, string $name, string $type = null)
     {
-        $nbt = Entity::createBaseNBT($player->getPosition(), new Vector3(), $player->yaw, $player->pitch);
-        $skin = $player->getSkin();
-        $nbt->setTag(new CompoundTag("Skin", [
-            new StringTag("Name", $skin->getSkinId()),
-            new ByteArrayTag("Data", $skin->getSkinData()),
-            new ByteArrayTag("CapeData", $skin->getCapeData()),
-            new StringTag("GeometryName", $skin->getGeometryName()),
-            new ByteArrayTag("GeometryData", $skin->getGeometryData())
-        ]));
-        $inventoryTag = new ListTag("Inventory", [], NBT::TAG_Compound);
+        if($type === null) {
+            $nbt = Entity::createBaseNBT($player->getPosition(), new Vector3(), $player->yaw, $player->pitch);
+            $skin = $player->getSkin();
+            $nbt->setTag(new CompoundTag("Skin", [
+                new StringTag("Name", $skin->getSkinId()),
+                new ByteArrayTag("Data", $skin->getSkinData()),
+                new ByteArrayTag("CapeData", $skin->getCapeData()),
+                new StringTag("GeometryName", $skin->getGeometryName()),
+                new ByteArrayTag("GeometryData", $skin->getGeometryData())
+            ]));
+            $inventoryTag = new ListTag("Inventory", [], NBT::TAG_Compound);
 
-        $slotCount = $player->getInventory()->getSize() + $player->getInventory()->getHotbarSize();
-        for ($slot = $player->getInventory()->getHotbarSize(); $slot < $slotCount; ++$slot) {
-            $item = $player->getInventory()->getItem($slot - 9);
-            if (!$item->isNull()) {
-                $inventoryTag->push($item->nbtSerialize($slot));
+            $slotCount = $player->getInventory()->getSize() + $player->getInventory()->getHotbarSize();
+            for ($slot = $player->getInventory()->getHotbarSize(); $slot < $slotCount; ++$slot) {
+                $item = $player->getInventory()->getItem($slot - 9);
+                if (!$item->isNull()) {
+                    $inventoryTag->push($item->nbtSerialize($slot));
+                }
             }
-        }
 
-        for ($slot = 100; $slot < 104; ++$slot) {
-            $item = $player->getArmorInventory()->getItem($slot - 100);
-            if (!$item->isNull()) {
-                $inventoryTag->push($item->nbtSerialize($slot));
+            for ($slot = 100; $slot < 104; ++$slot) {
+                $item = $player->getArmorInventory()->getItem($slot - 100);
+                if (!$item->isNull()) {
+                    $inventoryTag->push($item->nbtSerialize($slot));
+                }
             }
+
+            $nbt->setTag($inventoryTag);
+
+            $nbt->setInt("SelectedInventorySlot", $player->getInventory()->getHeldItemIndex());
+            $nbt->setByte('Invulnerable', 1);
+            $nbt->setString('NPCData', (new NPCData($name))->serialize());
+            $npc = new NPC($player->level, $nbt);
+            $npc->setNameTag(str_replace("(줄바꿈)", "\n", $name));
+            $npc->setNameTagAlwaysVisible();
+            $npc->setImmobile();
+            $npc->spawnToAll();
+            self::message($player, 'NPC created successfully: ' . $npc->getId());
+        } else {
+            $nbt = Entity::createBaseNBT($player->getPosition(), new Vector3(), $player->yaw, $player->pitch);
+            $nbt->setByte('Invulnerable', 1);
+            $nbt->setString('NPCData', (new NPCData($name))->serialize());
+            $nbt->setString('npcEntityType', $type);
+
+            $npc = new EntityNPC($player->level,$nbt);
+            $npc->setNameTag(str_replace("(줄바꿈)", "\n", $name));
+            $npc->setNameTagAlwaysVisible();
+            $npc->setImmobile();
+            $npc->spawnToAll();
+            self::message($player, 'NPC created successfully: ' . $npc->getId());
         }
-
-        $nbt->setTag($inventoryTag);
-
-        $nbt->setInt("SelectedInventorySlot", $player->getInventory()->getHeldItemIndex());
-        $nbt->setByte('Invulnerable', 1);
-        $nbt->setString('NPCData', (new NPCData($name))->serialize());
-        $npc = new NPC($player->level, $nbt);
-        $npc->setNameTag(str_replace("(줄바꿈)", "\n", $name));
-        $npc->setNameTagAlwaysVisible();
-        $npc->setImmobile();
-        $npc->spawnToAll();
     }
 }

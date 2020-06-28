@@ -2,6 +2,7 @@
 
 namespace ojy\npc\cmd;
 
+use ojy\npc\EntityNPC;
 use ojy\npc\NPC;
 use ojy\npc\NPCPlugin;
 use pocketmine\command\Command;
@@ -37,7 +38,7 @@ class NPCCommand extends Command
                             if ($scale < 0.4)
                                 $scale = 0.4;
                             $npc = Server::getInstance()->findEntity($id);
-                            if ($npc instanceof NPC) {
+                            if ($npc instanceof NPC || $npc instanceof EntityNPC) {
                                 $npc->setScale($scale);
                             } else {
                                 self::message($sender, "NPC with ID {$id} not found.");
@@ -51,9 +52,11 @@ class NPCCommand extends Command
                         if (isset($args[1])) {
                             $id = intval($args[1]);
                             $npc = Server::getInstance()->findEntity($id);
-                            if ($npc instanceof NPC) {
-                                $npc->getInventory()->clearAll();
-                                $npc->getArmorInventory()->clearAll();
+                            if ($npc instanceof NPC || $npc instanceof EntityNPC) {
+                                if ($npc instanceof NPC) {
+                                    $npc->getInventory()->clearAll();
+                                    $npc->getArmorInventory()->clearAll();
+                                }
                                 $npc->kill();
                             } else {
                                 self::message($sender, "NPC with ID {$id} not found.");
@@ -66,11 +69,19 @@ class NPCCommand extends Command
                     case 'spawn':
                         if ($sender instanceof Player) {
                             if (isset($args[1])) {
-                                unset($args[0]);
-                                $name = implode(' ', $args);
-                                NPCPlugin::createNPC($sender, $name);
+                                $type = null;
+                                $t = array_pop($args);
+                                if (substr($t, 0, 10) === 'minecraft:') {
+                                    // Entity NPC
+                                    unset($args[0]);
+                                    $type = $t;
+                                    $name = implode(' ', $args);
+                                } else {
+                                    $name = implode(' ', $args) . " {$t}";
+                                }
+                                NPCPlugin::createNPC($sender, $name, $type);
                             } else {
-                                self::message($sender, '/npc spawn <name>');
+                                self::message($sender, '/npc spawn <name> [type]');
                             }
                         } else {
                             self::message($sender, 'Please execute in the in-game.');
@@ -91,7 +102,7 @@ class NPCCommand extends Command
                             unset($args[0], $args[1]);
                             $cmd = implode(' ', $args);
                             $npc = Server::getInstance()->findEntity($id);
-                            if ($npc instanceof NPC) {
+                            if ($npc instanceof NPC || $npc instanceof EntityNPC) {
                                 $data = $npc->getData();
                                 $data->setCommand($cmd);
                                 $npc->setData($data);
@@ -110,7 +121,7 @@ class NPCCommand extends Command
                             unset($args[0], $args[1]);
                             $message = implode(' ', $args);
                             $npc = Server::getInstance()->findEntity($id);
-                            if ($npc instanceof NPC) {
+                            if ($npc instanceof NPC || $npc instanceof EntityNPC) {
                                 $data = $npc->getData();
                                 $data->setMessage($message);
                                 $npc->setData($data);
