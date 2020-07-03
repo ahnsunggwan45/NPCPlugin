@@ -16,6 +16,8 @@ class EntityNPC extends Living
 
     public const NETWORK_ID = 4949;
 
+    protected $gravity = 0;
+
     public function getName(): string
     {
         return "EntityNPC";
@@ -54,9 +56,11 @@ class EntityNPC extends Living
         $packet->type = $this->namedtag->getString("npcEntityType");
         $packet->metadata = $this->getDataPropertyManager()->getAll();
         $packet->yaw = $this->yaw;
+        $packet->headYaw = $this->yaw;
         $packet->pitch = $this->pitch;
         $packet->motion = $this->getMotion();
         $packet->position = $this->getPosition();
+        $packet->metadata = $this->getDataPropertyManager()->getAll();
         $player->dataPacket($packet);
     }
 

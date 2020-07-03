@@ -40,6 +40,7 @@ class NPCCommand extends Command
                             $npc = Server::getInstance()->findEntity($id);
                             if ($npc instanceof NPC || $npc instanceof EntityNPC) {
                                 $npc->setScale($scale);
+                                self::message($sender, "succeeded.");
                             } else {
                                 self::message($sender, "NPC with ID {$id} not found.");
                             }
@@ -58,6 +59,7 @@ class NPCCommand extends Command
                                     $npc->getArmorInventory()->clearAll();
                                 }
                                 $npc->kill();
+                                self::message($sender, "succeeded.");
                             } else {
                                 self::message($sender, "NPC with ID {$id} not found.");
                             }
@@ -70,10 +72,10 @@ class NPCCommand extends Command
                         if ($sender instanceof Player) {
                             if (isset($args[1])) {
                                 $type = null;
+                                unset($args[0]);
                                 $t = array_pop($args);
                                 if (substr($t, 0, 10) === 'minecraft:') {
                                     // Entity NPC
-                                    unset($args[0]);
                                     $type = $t;
                                     $name = implode(' ', $args);
                                 } else {
